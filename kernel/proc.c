@@ -541,6 +541,7 @@ sched(void)
 }
 
 // Give up the CPU for one scheduling round.
+// will never be called in FCFS scheduling
 void
 yield(void)
 {
