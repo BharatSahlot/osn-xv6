@@ -89,3 +89,41 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_sigalarm(void)
+{
+  int n;
+  uint64* addr = 0;
+  void (*handler)(void);
+  uint pticks;
+  argint(0, &n);
+  argaddr(1, addr);
+  handler = (void (*)(void))addr;
+
+  // acquire(&tickslock);
+  pticks = ticks;
+  while(n){
+    if(killed(myproc())){
+      // release(&tickslock);
+      return -1;
+    }
+    if(ticks - pticks == n)
+    {
+      acquire(&tickslock);
+      handler();
+      // pticks = ticks;
+      release(&tickslock);
+      pticks = ticks;
+    }
+  }
+  return 0;
+}
+
+
+uint64
+sys_sigreturn(void)
+{
+  usertrapret();
+  return 0;
+}

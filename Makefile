@@ -127,14 +127,15 @@ UPROGS=\
 	$U/_mkdir\
 	$U/_rm\
 	$U/_sh\
+	$U/_sigalarmtest\
 	$U/_stressfs\
 	$U/_usertests\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
 
-fs.img: mkfs/mkfs README $(UPROGS)
-	mkfs/mkfs fs.img README $(UPROGS)
+fs.img: mkfs/mkfs README.md $(UPROGS)
+	mkfs/mkfs fs.img README.md $(UPROGS)
 
 -include kernel/*.d user/*.d
 
