@@ -93,32 +93,22 @@ sys_uptime(void)
 uint64
 sys_sigalarm(void)
 {
+  struct proc *p = myproc();
   int n;
-  uint64 addr, handler_ptr;
-  void (*handler)(void);
-  uint pticks;
+  uint64 addr;
   argint(0, &n);
   argaddr(1, &addr);
-  int err = fetchaddr(addr, &handler_ptr);
-  if(err < 0)
+  if(n > 0)
   {
-    panic("sigalarm");
+    p->sigalarm = 1;
   }
-
-  handler = (void (*)(void))handler_ptr;
-
-  pticks = ticks;
-  while(n){
-    if(killed(myproc())){
-      return -1;
-    }
-    if(ticks - pticks == n){
-      acquire(&tickslock);
-      handler();
-      release(&tickslock);
-      pticks = ticks;
-    }
+  else
+  {
+    p->sigalarm = 0;
   }
+  p->ticksn = n;
+  p->ticksp = ticks;
+  p->handler = addr;
   return 0;
 }
 
@@ -126,6 +116,20 @@ sys_sigalarm(void)
 uint64
 sys_sigreturn(void)
 {
-  usertrapret();
-  return 0;
+  struct proc *p = myproc();
+  p->trapcopy->kernel_hartid = p->trapframe->kernel_hartid;
+  p->trapcopy->kernel_satp = p->trapframe->kernel_satp;
+  p->trapcopy->kernel_sp = p->trapframe->kernel_sp;
+  p->trapcopy->kernel_trap = p->trapframe->kernel_trap;
+  *(p->trapframe) = *(p->trapcopy);
+  if(p->ticksn > 0)
+  {
+    p->sigalarm = 1;
+  }
+  else
+  {
+    p->sigalarm = 0;
+  }
+  p->ticksp = ticks;
+  return p->trapframe->a0;
 }
