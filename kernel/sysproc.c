@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "syscall.h"
 
 uint64
 sys_exit(void)
@@ -24,7 +25,8 @@ sys_getpid(void)
 uint64
 sys_fork(void)
 {
-  return fork();
+  uint64 r = fork();
+  return r;
 }
 
 uint64
@@ -32,7 +34,9 @@ sys_wait(void)
 {
   uint64 p;
   argaddr(0, &p);
-  return wait(p);
+
+  uint64 r = wait(p);
+  return r;
 }
 
 uint64
@@ -44,7 +48,9 @@ sys_sbrk(void)
   argint(0, &n);
   addr = myproc()->sz;
   if(growproc(n) < 0)
+  {
     return -1;
+  }
   return addr;
 }
 
@@ -74,7 +80,8 @@ sys_kill(void)
   int pid;
 
   argint(0, &pid);
-  return kill(pid);
+  uint64 r = kill(pid);
+  return r;
 }
 
 // return how many clock tick interrupts have occurred
@@ -132,4 +139,18 @@ sys_sigreturn(void)
   }
   p->ticksp = ticks;
   return p->trapframe->a0;
+}
+
+uint64
+sys_trace(void)
+{
+  int mask;
+  struct proc* p;
+
+  argint(0, &mask);
+
+  p = myproc();
+  p->trace = 1;
+  p->tracemask = mask;
+  return 0;
 }

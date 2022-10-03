@@ -91,6 +91,9 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+#if FCFS
+  int stick;                   // tick number when the process was started
+#endif
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
@@ -109,4 +112,6 @@ struct proc {
   int sigalarm;                // flag to check if there is an active alarm
   uint64 handler;              // handler for alarm
   struct trapframe *trapcopy;  // copy of trapframe to restore registers
+  int trace;                   // If non-zero, syscalls by this process are being traced
+  int tracemask;               // Mask of syscalls to trace
 };

@@ -124,6 +124,13 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->trace = 0;
+  p->tracemask = 0;
+#if FCFS
+  acquire(&tickslock);
+  p->stick = ticks; // from defs.h, set by clock_intr
+  release(&tickslock);
+#endif
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0 || (p->trapcopy = (struct trapframe *)kalloc()) == 0){
@@ -177,6 +184,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->trace = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -303,6 +311,10 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+
+  // trace a fork if parent is also traced
+  np->trace = p->trace;
+  np->tracemask = p->tracemask;
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -456,6 +468,35 @@ scheduler(void)
   struct cpu *c = mycpu();
   
   c->proc = 0;
+
+#if FCFS
+  struct proc *best = 0;
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        if(best == 0) best = p;
+        else if(best->stick > p->stick) {
+          release(&best->lock);
+          best = p;
+        }
+      }
+      if(best != p) release(&p->lock);
+    }
+
+    if(best != 0) {
+      best->state = RUNNING;
+      c->proc = best;
+      swtch(&c->context, &best->context);
+      c->proc = 0;
+      release(&best->lock);
+    }
+    best = 0;
+  }
+#else
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
@@ -477,6 +518,7 @@ scheduler(void)
       release(&p->lock);
     }
   }
+#endif /* FCFS */
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -507,6 +549,7 @@ sched(void)
 }
 
 // Give up the CPU for one scheduling round.
+// will never be called in FCFS scheduling
 void
 yield(void)
 {
@@ -667,12 +710,12 @@ void
 procdump(void)
 {
   static char *states[] = {
-  [UNUSED]    "unused",
-  [USED]      "used",
-  [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
+  [UNUSED]    = "unused",
+  [USED]      = "used",
+  [SLEEPING]  = "sleep ",
+  [RUNNABLE]  = "runble",
+  [RUNNING]   = "run   ",
+  [ZOMBIE]    = "zombie"
   };
   struct proc *p;
   char *state;

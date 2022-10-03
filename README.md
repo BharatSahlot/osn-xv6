@@ -4,6 +4,18 @@ xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
 
+## TODO
+
+- [ ] fix strace for child processes
+
+## Features Implemented
+
+### Syscalls Implemented
+- **trace:** Implemented syscall `trace` which turns on the tracing mode for a process. During tracing for all syscalls called and specified in the mask, their arguement list and return value is printed.
+
+### Programs Written
+- **strace:** `strace <mask> <command>`, executes command `command` and traces all syscalls specified in the mask `mask`.
+
 ## ACKNOWLEDGMENTS
 
 xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
@@ -13,7 +25,7 @@ pointers to on-line resources for v6.
 
 The following people have made contributions: Russ Cox (context switching,
 locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+Clements.
 
 We are also grateful for the bug reports and patches contributed by
 Takahiro Aoyagi, Silas Boyd-Wickizer, Anton Burtsev, carlclone, Ian

@@ -76,7 +76,16 @@ usertrap(void)
   if(killed(p))
     exit(-1);
 
-
+#if FCFS
+  if(which_dev == 2){
+    if(p->ticksn > 0 && ticks - p->ticksp == p->ticksn && p->sigalarm)
+    {
+      p->sigalarm = 0;
+      *(p->trapcopy) = *(p->trapframe);
+      p->trapframe->epc = p->handler;
+    }
+  }
+#else
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2){
     if(p->ticksn > 0 && ticks - p->ticksp == p->ticksn && p->sigalarm)
@@ -87,6 +96,7 @@ usertrap(void)
     }
     yield();
   }
+#endif
 
   usertrapret();
 }
@@ -159,6 +169,9 @@ kerneltrap()
     panic("kerneltrap");
   }
 
+#if FCFS
+  // dont give up CPU in FCFS scheduling
+#else
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();
@@ -167,6 +180,7 @@ kerneltrap()
   // so restore trap registers for use by kernelvec.S's sepc instruction.
   w_sepc(sepc);
   w_sstatus(sstatus);
+#endif
 }
 
 void

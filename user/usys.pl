@@ -38,3 +38,4 @@ entry("sleep");
 entry("uptime");
 entry("sigalarm");
 entry("sigreturn");
+entry("trace");

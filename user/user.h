@@ -1,3 +1,5 @@
+#include "kernel/types.h"
+
 struct stat;
 
 // system calls
@@ -24,6 +26,7 @@ int sleep(int);
 int uptime(void);
 int sigalarm(int, void (*handler)(void));
 int sigreturn(void);
+int trace(int mask);
 
 // ulib.c
 int stat(const char*, struct stat*);
