@@ -299,6 +299,10 @@ fork(void)
   }
   np->sz = p->sz;
 
+  // trace a fork if parent is also traced
+  np->trace = p->trace;
+  np->tracemask = p->tracemask;
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
