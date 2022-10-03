@@ -55,6 +55,7 @@ AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
+SCHEDULER=
 
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -MD
@@ -69,6 +70,14 @@ CFLAGS += -fno-pie -no-pie
 endif
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
+endif
+
+ifeq ($(SCHEDULER),FCFS)
+CFLAGS += -DFCFS
+else ifeq ($(SCHEDULER),PBS)
+CFLAGS += -DPBS
+else ifeq ($(SCHEDULER),MLFQ)
+CFLAGS += -DMLFQ
 endif
 
 LDFLAGS = -z max-page-size=4096
