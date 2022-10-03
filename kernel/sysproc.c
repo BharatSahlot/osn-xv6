@@ -94,20 +94,25 @@ uint64
 sys_sigalarm(void)
 {
   int n;
-  uint64* addr = 0;
+  uint64 addr, handler_ptr;
   void (*handler)(void);
   uint pticks;
   argint(0, &n);
-  argaddr(1, addr);
-  handler = (void (*)(void))addr;
+  argaddr(1, &addr);
+  int err = fetchaddr(addr, &handler_ptr);
+  if(err < 0)
+  {
+    panic("sigalarm");
+  }
+
+  handler = (void (*)(void))handler_ptr;
 
   pticks = ticks;
   while(n){
     if(killed(myproc())){
       return -1;
     }
-    if(ticks - pticks == n)
-    {
+    if(ticks - pticks == n){
       acquire(&tickslock);
       handler();
       release(&tickslock);
