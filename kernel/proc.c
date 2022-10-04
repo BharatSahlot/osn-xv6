@@ -126,7 +126,7 @@ found:
   p->state = USED;
   p->trace = 0;
   p->tracemask = 0;
-#if FCFS
+#if defined(FCFS)
   acquire(&tickslock);
   p->stick = ticks; // from defs.h, set by clock_intr
   release(&tickslock);
@@ -470,7 +470,7 @@ scheduler(void)
   
   c->proc = 0;
 
-#if FCFS
+#if defined(FCFS)
   struct proc *best = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
