@@ -108,7 +108,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int ticksn;                  // ticks needed
-  int ticksp;                  // ticks passed
+  int ticksp;                  // ticks used by program
+  int tickspa;                 // ticks passed till last alarm
   int sigalarm;                // flag to check if there is an active alarm
   uint64 handler;              // handler for alarm
   struct trapframe *trapcopy;  // copy of trapframe to restore registers

@@ -142,6 +142,7 @@ found:
   p->sigalarm = 0;
   p->ticksn = 0;
   p->ticksp = 0;
+  p->tickspa = 0;
   p->handler = 0;
 
   // An empty user page table.

@@ -78,7 +78,8 @@ usertrap(void)
 
 #if FCFS
   if(which_dev == 2){
-    if(p->ticksn > 0 && ticks - p->ticksp == p->ticksn && p->sigalarm)
+    p->ticksp++;
+    if(p->ticksn > 0 && p->ticksp - p->tickspa == p->ticksn && p->sigalarm)
     {
       p->sigalarm = 0;
       *(p->trapcopy) = *(p->trapframe);
@@ -88,7 +89,8 @@ usertrap(void)
 #else
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2){
-    if(p->ticksn > 0 && ticks - p->ticksp == p->ticksn && p->sigalarm)
+    p->ticksp++;
+    if(p->ticksn > 0 && p->ticksp - p->tickspa == p->ticksn && p->sigalarm)
     {
       p->sigalarm = 0;
       *(p->trapcopy) = *(p->trapframe);
@@ -153,7 +155,9 @@ void
 kerneltrap()
 {
   int which_dev = 0;
+#ifndef FCFS
   uint64 sepc = r_sepc();
+#endif
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
   

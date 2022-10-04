@@ -114,7 +114,8 @@ sys_sigalarm(void)
     p->sigalarm = 0;
   }
   p->ticksn = n;
-  p->ticksp = ticks;
+  p->tickspa = p->ticksp;
+  // p->ticksp = 0;
   p->handler = addr;
   return 0;
 }
@@ -137,7 +138,7 @@ sys_sigreturn(void)
   {
     p->sigalarm = 0;
   }
-  p->ticksp = ticks;
+  p->tickspa = p->ticksp;
   return p->trapframe->a0;
 }
 
