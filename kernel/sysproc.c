@@ -115,7 +115,6 @@ sys_sigalarm(void)
   }
   p->ticksn = n;
   p->tickspa = p->ticksp;
-  // p->ticksp = 0;
   p->handler = addr;
   return 0;
 }
@@ -153,5 +152,22 @@ sys_trace(void)
   p = myproc();
   p->trace = 1;
   p->tracemask = mask;
+  return 0;
+}
+
+
+uint64
+sys_settickets(void)
+{
+  int n;
+  struct proc *p = myproc();
+  argint(0, &n);
+  if(n < 0)
+  {
+    return -1;
+  }
+  totaltickets -= p->tickets;
+  p->tickets = n;
+  totaltickets += n;
   return 0;
 }

@@ -76,7 +76,7 @@ usertrap(void)
   if(killed(p))
     exit(-1);
 
-#if FCFS
+#if defined(FCFS)
   if(which_dev == 2){
     p->ticksp++;
     if(p->ticksn > 0 && p->ticksp - p->tickspa == p->ticksn && p->sigalarm)
@@ -155,7 +155,7 @@ void
 kerneltrap()
 {
   int which_dev = 0;
-#ifndef FCFS
+#if !defined(FCFS)
   uint64 sepc = r_sepc();
 #endif
   uint64 sstatus = r_sstatus();
@@ -167,13 +167,12 @@ kerneltrap()
     panic("kerneltrap: interrupts enabled");
 
   if((which_dev = devintr()) == 0){
-    printf("%d\n", which_dev);
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
     panic("kerneltrap");
   }
 
-#if FCFS
+#if defined(FCFS)
   // dont give up CPU in FCFS scheduling
 #else
   // give up the CPU if this is a timer interrupt.

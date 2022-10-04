@@ -74,6 +74,8 @@ endif
 
 ifeq ($(SCHEDULER),FCFS)
 CFLAGS += -DFCFS
+else ifeq ($(SCHEDULER),LBS)
+CFLAGS += -DLBS
 else ifeq ($(SCHEDULER),PBS)
 CFLAGS += -DPBS
 else ifeq ($(SCHEDULER),MLFQ)
@@ -143,6 +145,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_strace\
+	$U/_LBStest\
 
 fs.img: mkfs/mkfs README.md $(UPROGS)
 	mkfs/mkfs fs.img README.md $(UPROGS)
