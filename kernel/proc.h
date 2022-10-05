@@ -93,6 +93,14 @@ struct proc {
   int pid;                     // Process ID
 #if defined(FCFS)
   int stick;                   // tick number when the process was started
+#elif defined(PBS)
+  int stick;                   // tick number when the process was started
+  int priority;                // static priority of the process
+  int tickls;                  // tick number when last scheduled or when last sleep
+  int tickslp;                 // ticks spent in sleeping
+  int tickrng;                 // ticks spent while running
+  int niceness;                // last computed niceness of the process
+  int nscheduled;              // number of times the process has been scheduled
 #endif
 
   // wait_lock must be held when using this:

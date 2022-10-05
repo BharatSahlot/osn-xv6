@@ -72,7 +72,13 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-ifeq ($(SCHEDULER),FCFS)
+ifndef SCHEDULER
+SCHEDULER := RR
+endif
+
+ifeq ($(SCHEDULER),RR)
+CFLAGS += -DRR
+else ifeq ($(SCHEDULER),FCFS)
 CFLAGS += -DFCFS
 else ifeq ($(SCHEDULER),PBS)
 CFLAGS += -DPBS
@@ -143,6 +149,8 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_strace\
+	$U/_pbstest\
+	$U/_setpriority\
 
 fs.img: mkfs/mkfs README.md $(UPROGS)
 	mkfs/mkfs fs.img README.md $(UPROGS)

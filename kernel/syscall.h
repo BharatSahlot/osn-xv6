@@ -23,3 +23,6 @@
 #define SYS_trace  22
 #define SYS_sigalarm  23
 #define SYS_sigreturn  24
+#if defined(PBS)
+#define SYS_set_priority  25
+#endif
