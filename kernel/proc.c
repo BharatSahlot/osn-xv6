@@ -170,8 +170,7 @@ found:
 #endif
 
 #if defined(LBS)
-  p->tickets = 1; // by default one ticket assigned to process
-  totaltickets++;
+  p->tickets = 0; // by default one ticket assigned to process
 #endif
 
   // Allocate a trapframe page.
@@ -317,6 +316,8 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->tickets = 1;
+  totaltickets++;
 
   release(&p->lock);
 }
@@ -366,6 +367,7 @@ fork(void)
   // child should have same no. of tickets as parent
 #if defined(LBS)
   np->tickets = p->tickets;
+  totaltickets += np->tickets;
 #endif
 
   // trace a fork if parent is also traced
@@ -582,6 +584,7 @@ scheduler(void)
           // to release its lock and then reacquire it
           // before jumping back to us.
           p->state = RUNNING;
+          totaltickets -= p->tickets;
           c->proc = p;
           swtch(&c->context, &p->context);
 
@@ -656,6 +659,9 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+#if defined(LBS)
+  totaltickets += p->tickets;
+#endif
   sched();
   release(&p->lock);
 }
@@ -701,6 +707,9 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+#if defined(LBS)
+  totaltickets -= p->tickets;
+#endif
 
   sched();
 
@@ -724,6 +733,9 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
+#if defined(LBS)
+        totaltickets += p->tickets;
+#endif
       }
       release(&p->lock);
     }
@@ -745,6 +757,9 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+#if defined(LBS)
+        totaltickets += p->tickets;
+#endif
       }
       release(&p->lock);
       return 0;
