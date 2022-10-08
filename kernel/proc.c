@@ -316,8 +316,10 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+#if defined(LBS)
   p->tickets = 1;
   totaltickets++;
+#endif
 
   release(&p->lock);
 }
@@ -364,12 +366,6 @@ fork(void)
   }
   np->sz = p->sz;
 
-  // child should have same no. of tickets as parent
-#if defined(LBS)
-  np->tickets = p->tickets;
-  totaltickets += np->tickets;
-#endif
-
   // trace a fork if parent is also traced
   np->trace = p->trace;
   np->tracemask = p->tracemask;
@@ -398,6 +394,11 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  // child should have same no. of tickets as parent
+#if defined(LBS)
+  np->tickets = p->tickets;
+  totaltickets += np->tickets;
+#endif
   release(&np->lock);
 
   return pid;
@@ -455,9 +456,6 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
-#if defined(LBS)
-  totaltickets -= p->tickets;
-#endif
 
   release(&wait_lock);
 
@@ -559,26 +557,28 @@ scheduler(void)
   }
 #elif defined(LBS)
   for(;;){
-    static int ctickets[NPROC] = {0};  // to store cumulative ticket sum of runnable processes
-    int i = 0;
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+    static int ctickets = 0;  // to store cumulative ticket sum of runnable processes
+    int i = 0;
     int pflag = 0;
     int rn = (rand() % totaltickets) + 1;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+        // printf("rn = %d\ntotal tickets = %d\n", rn, totaltickets);
         if(i == 0)
         {
-          ctickets[i] = p->tickets;
+          ctickets = p->tickets;
         }
         else
         {
-          ctickets[i] = p->tickets + ctickets[i-1];
+          ctickets = p->tickets + ctickets;
         }
-        if(ctickets[i] >= rn && pflag == 0)
+        if(ctickets >= rn && pflag == 0)
         {
+          // printf("ctickets = %d\n", ctickets);
           pflag = 1;
           // Switch to chosen process.  It is the process's job
           // to release its lock and then reacquire it
@@ -658,10 +658,10 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
-  p->state = RUNNABLE;
 #if defined(LBS)
-  totaltickets += p->tickets;
+    totaltickets += p->tickets;
 #endif
+  p->state = RUNNABLE;
   sched();
   release(&p->lock);
 }
@@ -707,9 +707,6 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-#if defined(LBS)
-  totaltickets -= p->tickets;
-#endif
 
   sched();
 

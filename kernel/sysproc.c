@@ -105,6 +105,7 @@ sys_sigalarm(void)
   uint64 addr;
   argint(0, &n);
   argaddr(1, &addr);
+  acquire(&p->lock);
   if(n > 0)
   {
     p->sigalarm = 1;
@@ -116,6 +117,7 @@ sys_sigalarm(void)
   p->ticksn = n;
   p->tickspa = p->ticksp;
   p->handler = addr;
+  release(&p->lock);
   return 0;
 }
 
@@ -124,6 +126,7 @@ uint64
 sys_sigreturn(void)
 {
   struct proc *p = myproc();
+  acquire(&p->lock);
   p->trapcopy->kernel_hartid = p->trapframe->kernel_hartid;
   p->trapcopy->kernel_satp = p->trapframe->kernel_satp;
   p->trapcopy->kernel_sp = p->trapframe->kernel_sp;
@@ -138,6 +141,7 @@ sys_sigreturn(void)
     p->sigalarm = 0;
   }
   p->tickspa = p->ticksp;
+  release(&p->lock);
   return p->trapframe->a0;
 }
 
@@ -166,8 +170,8 @@ sys_settickets(void)
   {
     return -1;
   }
-  totaltickets -= p->tickets;
+  acquire(&p->lock);
   p->tickets = n;
-  totaltickets += n;
+  release(&p->lock);
   return 0;
 }
