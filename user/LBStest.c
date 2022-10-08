@@ -7,10 +7,13 @@
 int
 main(int argc, char *argv[])
 {
+#if !defined(LBS)
+  printf("kernel not compiled with LBS\n");
+  exit(1);
+#else
   int t1 = atoi(argv[1]);
   int t2 = atoi(argv[2]);
   if(t1 < 0 || t2 < 0){
-    printf("loda\n");
     exit(1);
   }
   int f = fork();
@@ -41,4 +44,5 @@ main(int argc, char *argv[])
   }
   write(2, "\n", 1);
   return 0;
+#endif
 }
