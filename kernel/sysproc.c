@@ -105,6 +105,7 @@ sys_sigalarm(void)
   uint64 addr;
   argint(0, &n);
   argaddr(1, &addr);
+  acquire(&p->lock);
   if(n > 0)
   {
     p->sigalarm = 1;
@@ -115,8 +116,8 @@ sys_sigalarm(void)
   }
   p->ticksn = n;
   p->tickspa = p->ticksp;
-  // p->ticksp = 0;
   p->handler = addr;
+  release(&p->lock);
   return 0;
 }
 
@@ -125,6 +126,7 @@ uint64
 sys_sigreturn(void)
 {
   struct proc *p = myproc();
+  acquire(&p->lock);
   p->trapcopy->kernel_hartid = p->trapframe->kernel_hartid;
   p->trapcopy->kernel_satp = p->trapframe->kernel_satp;
   p->trapcopy->kernel_sp = p->trapframe->kernel_sp;
@@ -139,6 +141,7 @@ sys_sigreturn(void)
     p->sigalarm = 0;
   }
   p->tickspa = p->ticksp;
+  release(&p->lock);
   return p->trapframe->a0;
 }
 
@@ -166,5 +169,24 @@ sys_set_priority(void)
   argint(1, &pid);
 
   return set_priority(np, pid);
+}
+#endif
+
+
+#if defined(LBS)
+uint64
+sys_settickets(void)
+{
+  int n;
+  struct proc *p = myproc();
+  argint(0, &n);
+  if(n < 0)
+  {
+    return -1;
+  }
+  acquire(&p->lock);
+  p->tickets = n;
+  release(&p->lock);
+  return 0;
 }
 #endif

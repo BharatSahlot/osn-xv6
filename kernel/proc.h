@@ -81,6 +81,9 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
+extern int totaltickets;
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -101,6 +104,10 @@ struct proc {
   int tickrng;                 // ticks spent while running
   int niceness;                // last computed niceness of the process
   int nscheduled;              // number of times the process has been scheduled
+#endif
+
+#if defined(LBS)
+  int tickets;                 // tickets assigned to the process
 #endif
 
   // wait_lock must be held when using this:

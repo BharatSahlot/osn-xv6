@@ -108,6 +108,10 @@ extern uint64 sys_trace(void);
 extern uint64 sys_set_priority(void);
 #endif
 
+#if defined(LBS)
+extern uint64 sys_settickets(void);
+#endif
+
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
@@ -137,6 +141,9 @@ static uint64 (*syscalls[])(void) = {
 [SYS_trace]   = sys_trace,
 #if defined(PBS)
 [SYS_set_priority]   = sys_set_priority
+#endif
+#if defined(LBS)
+[SYS_settickets]   = sys_settickets
 #endif
 };
 
@@ -168,6 +175,9 @@ static const char* sysnames[] = {
 #if defined(PBS)
 [SYS_set_priority] = "set_priority"
 #endif
+#if defined(LBS)
+[SYS_settickets] = "settickets"
+#endif
 };
 
 static int sysargs[] = {
@@ -197,6 +207,9 @@ static int sysargs[] = {
 [SYS_sigreturn] = 0,
 #if defined(PBS)
 [SYS_set_priority] = 2
+#endif
+#if defined(LBS)
+[SYS_settickets] = 1
 #endif
 };
 

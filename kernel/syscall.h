@@ -26,3 +26,6 @@
 #if defined(PBS)
 #define SYS_set_priority  25
 #endif
+#if defined(LBS)
+#define SYS_settickets  25
+#endif

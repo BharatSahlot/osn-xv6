@@ -80,6 +80,8 @@ ifeq ($(SCHEDULER),RR)
 CFLAGS += -DRR
 else ifeq ($(SCHEDULER),FCFS)
 CFLAGS += -DFCFS
+else ifeq ($(SCHEDULER),LBS)
+CFLAGS += -DLBS
 else ifeq ($(SCHEDULER),PBS)
 CFLAGS += -DPBS
 else ifeq ($(SCHEDULER),MLFQ)
@@ -113,6 +115,8 @@ $U/usys.S : $U/usys.pl
 	cat $U/usys.pl > $U/temp.pl
 ifeq ($(SCHEDULER),PBS)
 	echo 'entry("set_priority")' >> $U/temp.pl
+else ifeq ($(SCHEDULER),LBS)
+	echo 'entry("settickets")' >> $U/temp.pl
 endif
 	perl $U/temp.pl > $U/usys.S
 
@@ -155,6 +159,7 @@ UPROGS=\
 	$U/_strace\
 	$U/_pbstest\
 	$U/_setpriority\
+	$U/_LBStest\
 
 fs.img: mkfs/mkfs README.md $(UPROGS)
 	mkfs/mkfs fs.img README.md $(UPROGS)
@@ -176,7 +181,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic

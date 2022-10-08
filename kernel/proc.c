@@ -6,6 +6,41 @@
 #include "proc.h"
 #include "defs.h"
 
+// from FreeBSD.
+int
+do_rand(unsigned long *ctx)
+{
+/*
+ * Compute x = (7^5 * x) mod (2^31 - 1)
+ * without overflowing 31 bits:
+ *      (2^31 - 1) = 127773 * (7^5) + 2836
+ * From "Random number generators: good ones are hard to find",
+ * Park and Miller, Communications of the ACM, vol. 31, no. 10,
+ * October 1988, p. 1195.
+ */
+    long hi, lo, x;
+
+    /* Transform to [1, 0x7ffffffe] range. */
+    x = (*ctx % 0x7ffffffe) + 1;
+    hi = x / 127773;
+    lo = x % 127773;
+    x = 16807 * lo - 2836 * hi;
+    if (x < 0)
+        x += 0x7fffffff;
+    /* Transform to [0, 0x7ffffffd] range. */
+    x--;
+    *ctx = x;
+    return (x);
+}
+
+unsigned long rand_next = 1;
+
+int
+rand(void)
+{
+    return (do_rand(&rand_next));
+}
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -17,6 +52,8 @@ struct spinlock pid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
+
+int totaltickets = 0;
 
 extern char trampoline[]; // trampoline.S
 
@@ -138,6 +175,10 @@ found:
   p->nscheduled = 0;
 #endif
 
+#if defined(LBS)
+  p->tickets = 0; // by default one ticket assigned to process
+#endif
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0 || (p->trapcopy = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -182,6 +223,9 @@ freeproc(struct proc *p)
   p->trapcopy = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+#if defined(LBS)
+  p->tickets = 0;
+#endif
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -192,6 +236,11 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
   p->trace = 0;
+  p->sigalarm = 0;
+  p->ticksn = 0;
+  p->ticksp = 0;
+  p->tickspa = 0;
+  p->handler = 0;
 #if defined(FCFS)
   p->stick = 0;
 #elif defined(PBS)
@@ -284,6 +333,10 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+#if defined(LBS)
+  p->tickets = 1;
+  totaltickets++;
+#endif
 
   release(&p->lock);
 }
@@ -358,6 +411,11 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  // child should have same no. of tickets as parent
+#if defined(LBS)
+  np->tickets = p->tickets;
+  totaltickets += np->tickets;
+#endif
   release(&np->lock);
 
   return pid;
@@ -566,6 +624,50 @@ scheduler(void)
     }
     best = 0;
   }
+#elif defined(LBS)
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    static int ctickets = 0;  // to store cumulative ticket sum of runnable processes
+    int i = 0;
+    int pflag = 0;
+    int rn = (rand() % totaltickets) + 1;
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        // printf("rn = %d\ntotal tickets = %d\n", rn, totaltickets);
+        if(i == 0)
+        {
+          ctickets = p->tickets;
+        }
+        else
+        {
+          ctickets = p->tickets + ctickets;
+        }
+        if(ctickets >= rn && pflag == 0)
+        {
+          // printf("ctickets = %d\n", ctickets);
+          pflag = 1;
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          totaltickets -= p->tickets;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+          release(&p->lock);
+          break;
+        }
+        i++;
+      }
+      release(&p->lock);
+    }
+  }
 #else
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -626,6 +728,9 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+#if defined(LBS)
+    totaltickets += p->tickets;
+#endif
   p->state = RUNNABLE;
 #if defined(PBS)
   p->tickrng = ticks;
@@ -715,6 +820,9 @@ wakeup(void *chan)
         else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
 #endif
         p->state = RUNNABLE;
+#if defined(LBS)
+        totaltickets += p->tickets;
+#endif
       }
       release(&p->lock);
     }
@@ -736,6 +844,9 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+#if defined(LBS)
+        totaltickets += p->tickets;
+#endif
       }
       release(&p->lock);
       return 0;
