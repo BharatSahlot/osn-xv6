@@ -14,7 +14,7 @@ sub entry {
     print " ecall\n";
     print " ret\n";
 }
-	
+
 entry("fork");
 entry("exit");
 entry("wait");
@@ -39,4 +39,3 @@ entry("uptime");
 entry("sigalarm");
 entry("sigreturn");
 entry("trace");
-entry("set_priority");

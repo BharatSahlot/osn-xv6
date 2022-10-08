@@ -110,7 +110,11 @@ _%: %.o $(ULIB)
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
 $U/usys.S : $U/usys.pl
-	perl $U/usys.pl > $U/usys.S
+	cat $U/usys.pl > $U/temp.pl
+ifeq ($(SCHEDULER),PBS)
+	echo 'entry("set_priority")' >> $U/temp.pl
+endif
+	perl $U/temp.pl > $U/usys.S
 
 $U/usys.o : $U/usys.S
 	$(CC) $(CFLAGS) -c -o $U/usys.o $U/usys.S
@@ -162,7 +166,7 @@ clean:
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
-        $U/usys.S \
+        $U/usys.S $U/temp.pl \
 	$(UPROGS)
 
 # try to generate a unique GDB port
