@@ -98,7 +98,9 @@ struct proc {
   int stick;                   // tick number when the process was started
 #endif
 
+#if defined(LBS)
   int tickets;                 // tickets assigned to the process
+#endif
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

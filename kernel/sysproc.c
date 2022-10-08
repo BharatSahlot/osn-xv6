@@ -160,6 +160,7 @@ sys_trace(void)
 }
 
 
+#if defined(LBS)
 uint64
 sys_settickets(void)
 {
@@ -175,3 +176,4 @@ sys_settickets(void)
   release(&p->lock);
   return 0;
 }
+#endif

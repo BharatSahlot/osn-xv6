@@ -106,7 +106,11 @@ _%: %.o $(ULIB)
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
 $U/usys.S : $U/usys.pl
-	perl $U/usys.pl > $U/usys.S
+	cat $U/usys.pl > $U/temp.pl
+ifeq ($(SCHEDULER),LBS)
+	echo 'entry("settickets")' >> $U/temp.pl
+endif
+	perl $U/temp.pl > $U/usys.S
 
 $U/usys.o : $U/usys.S
 	$(CC) $(CFLAGS) -c -o $U/usys.o $U/usys.S
