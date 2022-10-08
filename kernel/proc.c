@@ -844,6 +844,12 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+#if defined(PBS)
+        p->tickslp = ticks - p->tickls;
+        p->tickls = ticks;
+        if(p->tickslp + p->tickrng == 0) p->niceness = 0;
+        else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
+#endif
 #if defined(LBS)
         totaltickets += p->tickets;
 #endif
