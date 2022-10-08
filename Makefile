@@ -72,7 +72,13 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-ifeq ($(SCHEDULER),FCFS)
+ifndef SCHEDULER
+SCHEDULER := RR
+endif
+
+ifeq ($(SCHEDULER),RR)
+CFLAGS += -DRR
+else ifeq ($(SCHEDULER),FCFS)
 CFLAGS += -DFCFS
 else ifeq ($(SCHEDULER),LBS)
 CFLAGS += -DLBS
@@ -107,7 +113,9 @@ _%: %.o $(ULIB)
 
 $U/usys.S : $U/usys.pl
 	cat $U/usys.pl > $U/temp.pl
-ifeq ($(SCHEDULER),LBS)
+ifeq ($(SCHEDULER),PBS)
+	echo 'entry("set_priority")' >> $U/temp.pl
+else ifeq ($(SCHEDULER),LBS)
 	echo 'entry("settickets")' >> $U/temp.pl
 endif
 	perl $U/temp.pl > $U/usys.S
@@ -149,6 +157,8 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_strace\
+	$U/_pbstest\
+	$U/_setpriority\
 	$U/_LBStest\
 
 fs.img: mkfs/mkfs README.md $(UPROGS)

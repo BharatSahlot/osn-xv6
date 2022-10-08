@@ -159,6 +159,19 @@ sys_trace(void)
   return 0;
 }
 
+#if defined(PBS)
+uint64
+sys_set_priority(void)
+{
+  int np, pid;
+
+  argint(0, &np);
+  argint(1, &pid);
+
+  return set_priority(np, pid);
+}
+#endif
+
 
 #if defined(LBS)
 uint64

@@ -164,9 +164,15 @@ found:
   p->trace = 0;
   p->tracemask = 0;
 #if defined(FCFS)
-  acquire(&tickslock);
   p->stick = ticks; // from defs.h, set by clock_intr
-  release(&tickslock);
+#elif defined(PBS)
+  p->stick = ticks; // from defs.h, set by clock_intr
+  p->priority = 60; // default static priority is 60
+  p->tickls = 0;
+  p->tickrng = 0;
+  p->tickslp = 0;
+  p->niceness = 5;  // default niceness is 5
+  p->nscheduled = 0;
 #endif
 
 #if defined(LBS)
@@ -235,6 +241,17 @@ freeproc(struct proc *p)
   p->ticksp = 0;
   p->tickspa = 0;
   p->handler = 0;
+#if defined(FCFS)
+  p->stick = 0;
+#elif defined(PBS)
+  p->stick = 0;
+  p->tickls = 0;
+  p->tickslp = 0;
+  p->tickrng = 0;
+  p->priority = 0;
+  p->niceness = 0;
+  p->nscheduled = 0;
+#endif
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -513,6 +530,44 @@ wait(uint64 addr)
   }
 }
 
+#if defined(PBS)
+int compute_priority(int p, int n)
+{
+  int r = p - n + 5;
+  if(r > 100) r = 100;
+  if(r < 0) r = 0;
+  return r;
+}
+
+// returns non-zero if p should be scheduled before best
+int compare_priority(struct proc* best, struct proc* p)
+{
+  int p1 = compute_priority(best->priority, best->niceness);
+  int p2 = compute_priority(p->priority, p->niceness);
+  if(p1 != p2) return p2 < p1;
+  if(best->nscheduled != p->nscheduled) return p->nscheduled < best->nscheduled;
+  return p->stick > best->stick;
+}
+
+int set_priority(int new_priority, int pid)
+{
+  struct proc* p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state != UNUSED && p->pid == pid) {
+      p->niceness = 5;
+      int old = p->priority;
+      p->priority = new_priority;
+      release(&p->lock);
+      if(new_priority < old) yield();
+      return old;
+    }
+    release(&p->lock);
+  }
+  return -1;
+}
+#endif
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -528,7 +583,7 @@ scheduler(void)
   
   c->proc = 0;
 
-#if defined(FCFS)
+#if defined(FCFS) || defined(PBS)
   struct proc *best = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -537,11 +592,19 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+#if defined(FCFS)
         if(best == 0) best = p;
         else if(best->stick > p->stick) {
           release(&best->lock);
           best = p;
         }
+#elif defined(PBS)
+        if(best == 0) best = p;
+        else if(compare_priority(best, p)) {
+          release(&best->lock);
+          best = p;
+        }
+#endif
       }
       if(best != p) release(&p->lock);
     }
@@ -549,6 +612,12 @@ scheduler(void)
     if(best != 0) {
       best->state = RUNNING;
       c->proc = best;
+#if defined(PBS)
+      // acquire(&tickslock);
+      best->tickls = ticks;
+      // release(&tickslock);
+      best->nscheduled++;
+#endif
       swtch(&c->context, &best->context);
       c->proc = 0;
       release(&best->lock);
@@ -621,7 +690,7 @@ scheduler(void)
       release(&p->lock);
     }
   }
-#endif /* FCFS */
+#endif
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -651,6 +720,7 @@ sched(void)
   mycpu()->intena = intena;
 }
 
+#if !defined(FCFS)
 // Give up the CPU for one scheduling round.
 // will never be called in FCFS scheduling
 void
@@ -662,9 +732,13 @@ yield(void)
     totaltickets += p->tickets;
 #endif
   p->state = RUNNABLE;
+#if defined(PBS)
+  p->tickrng = ticks;
+#endif
   sched();
   release(&p->lock);
 }
+#endif
 
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
@@ -704,6 +778,16 @@ sleep(void *chan, struct spinlock *lk)
   acquire(&p->lock);  //DOC: sleeplock1
   release(lk);
 
+#if defined(PBS)
+  if(p->state == RUNNING) {
+    // ticks lock is already held
+    p->tickrng = ticks - p->tickls;
+    p->tickls = ticks;
+    if(p->tickslp + p->tickrng == 0) p->niceness = 0;
+    else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
+  }
+#endif
+
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
@@ -729,6 +813,12 @@ wakeup(void *chan)
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
+#if defined(PBS)
+        p->tickslp = ticks - p->tickls;
+        p->tickls = ticks;
+        if(p->tickslp + p->tickrng == 0) p->niceness = 0;
+        else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
+#endif
         p->state = RUNNABLE;
 #if defined(LBS)
         totaltickets += p->tickets;
@@ -754,6 +844,12 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+#if defined(PBS)
+        p->tickslp = ticks - p->tickls;
+        p->tickls = ticks;
+        if(p->tickslp + p->tickrng == 0) p->niceness = 0;
+        else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
+#endif
 #if defined(LBS)
         totaltickets += p->tickets;
 #endif
@@ -840,7 +936,13 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
+#if defined (PBS)
+    printf("%d %d %d %s %s", p->pid, p->priority, p->niceness, state, p->name);
+#elif defined (FCFS)
+    printf("%d %d %s %s", p->pid, p->stick, state, p->name);
+#else
     printf("%d %s %s", p->pid, state, p->name);
+#endif
     printf("\n");
   }
 }

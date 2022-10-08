@@ -104,6 +104,9 @@ extern uint64 sys_close(void);
 extern uint64 sys_sigalarm(void);
 extern uint64 sys_sigreturn(void);
 extern uint64 sys_trace(void);
+#if defined(PBS)
+extern uint64 sys_set_priority(void);
+#endif
 
 #if defined(LBS)
 extern uint64 sys_settickets(void);
@@ -136,6 +139,9 @@ static uint64 (*syscalls[])(void) = {
 [SYS_sigalarm]   = sys_sigalarm,
 [SYS_sigreturn]   = sys_sigreturn,
 [SYS_trace]   = sys_trace,
+#if defined(PBS)
+[SYS_set_priority]   = sys_set_priority
+#endif
 #if defined(LBS)
 [SYS_settickets]   = sys_settickets
 #endif
@@ -166,6 +172,9 @@ static const char* sysnames[] = {
 [SYS_trace]   = "trace",
 [SYS_sigalarm] = "sigalarm",
 [SYS_sigreturn] = "sigreturn",
+#if defined(PBS)
+[SYS_set_priority] = "set_priority"
+#endif
 #if defined(LBS)
 [SYS_settickets] = "settickets"
 #endif
@@ -196,6 +205,9 @@ static int sysargs[] = {
 [SYS_trace]   = 1,
 [SYS_sigalarm] = 2,
 [SYS_sigreturn] = 0,
+#if defined(PBS)
+[SYS_set_priority] = 2
+#endif
 #if defined(LBS)
 [SYS_settickets] = 1
 #endif
