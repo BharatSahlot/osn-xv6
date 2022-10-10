@@ -96,7 +96,13 @@ usertrap(void)
       *(p->trapcopy) = *(p->trapframe);
       p->trapframe->epc = p->handler;
     }
+#if defined(MLFQ)
+    struct proc* p = myproc();
+    p->ticksused++;
+    if(p->ticksused >= (1 << p->queue)) yield();
+#else
     yield();
+#endif
   }
 #endif
 
@@ -176,8 +182,15 @@ kerneltrap()
   // dont give up CPU in non-premptive scheduling
 #else
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING) {
+#if defined(MLFQ)
+    struct proc* p = myproc();
+    p->ticksused++;
+    if(p->ticksused >= (1 << p->queue)) yield();
+#else
     yield();
+#endif
+  }
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.

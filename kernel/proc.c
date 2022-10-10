@@ -45,6 +45,41 @@ struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
+#if defined(MLFQ)
+struct qproc queue[NQUEUE];
+
+struct proc* front(struct qproc* q)
+{
+  return q->proc[0];
+}
+
+void pop(struct qproc* q)
+{
+  for(int i = 0; i < NPROC - 1; i++) {
+    q->proc[i] = q->proc[i + 1];
+  }
+  q->proc[NPROC - 1] = 0;
+}
+
+void push(struct qproc* q, struct proc* p)
+{
+  for(int i = 0; i < NPROC; i++) {
+    if(q->proc[i] == 0) {
+      q->proc[i] = p;
+      break;
+    }
+  }
+}
+
+void mlfq_new_proc(struct proc* p)
+{
+  acquire(&queue[0].lock);
+  p->queue = 0;
+  push(&queue[0], p);
+  release(&queue[0].lock);
+}
+#endif
+
 struct proc *initproc;
 
 int nextpid = 1;
@@ -93,6 +128,15 @@ procinit(void)
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
   }
+#if defined(MLFQ)
+  struct qproc* q;
+  for(q = queue; q < &queue[NQUEUE]; q++) {
+    initlock(&q->lock, "queue");
+    for(int i = 0; i < NPROC; i++) {
+      q->proc[i] = 0;
+    }
+  }
+#endif
 }
 
 // Must be called with interrupts disabled,
@@ -179,6 +223,12 @@ found:
   p->tickets = 0; // by default one ticket assigned to process
 #endif
 
+#if defined(MLFQ)
+  p->queue = -1;  // not part of any queue in beginning
+  p->waittime = 0;
+  p->ticksused = 0;
+#endif
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0 || (p->trapcopy = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -251,6 +301,12 @@ freeproc(struct proc *p)
   p->priority = 0;
   p->niceness = 0;
   p->nscheduled = 0;
+#endif
+
+#if defined(MLFQ)
+  p->queue = 0;
+  p->waittime = 0;
+  p->ticksused = 0;
 #endif
 }
 
@@ -333,6 +389,11 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+#if defined(MLFQ)
+  mlfq_new_proc(p);
+#endif
+
 #if defined(LBS)
   p->tickets = 1;
   totaltickets++;
@@ -411,8 +472,13 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  // child should have same no. of tickets as parent
+
+#if defined(MLFQ)
+  mlfq_new_proc(np);
+#endif
+
 #if defined(LBS)
+  // child should have same no. of tickets as parent
   np->tickets = p->tickets;
   totaltickets += np->tickets;
 #endif
@@ -624,6 +690,47 @@ scheduler(void)
     }
     best = 0;
   }
+#elif defined(MLFQ)
+  for(;;) {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    struct qproc* q = 0;
+    for(q = queue; q < &queue[NQUEUE]; q++) {
+      acquire(&q->lock);
+      p = front(q);
+      if(p != 0) {
+        pop(q);
+        acquire(&p->lock);
+        if(p->state != RUNNABLE) {
+          release(&p->lock);
+          p = front(q);
+          while(p != 0) {
+            pop(q);
+            acquire(&p->lock);
+            if(p->state != RUNNABLE) {
+              release(&p->lock);
+              p = front(q);
+              continue;
+            }
+            break;
+          }
+        }
+        if(p == 0) {
+          release(&q->lock);
+          break;
+        }
+        p->state = RUNNING;
+        c->proc = p;
+        release(&q->lock);
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        release(&p->lock);
+        break;
+      }
+      release(&q->lock);
+    }
+  }
 #elif defined(LBS)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
@@ -728,13 +835,27 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+
 #if defined(LBS)
     totaltickets += p->tickets;
 #endif
+
   p->state = RUNNABLE;
+#if defined(MLFQ)
+  // move to next queue
+  if(p->queue != NQUEUE - 1 && p->ticksused >= (1 << p->queue)) p->queue++;
+
+  p->ticksused = 0;
+  acquire(&queue[p->queue].lock);
+  // add to end of the same queue
+  push(&queue[p->queue], p);
+  release(&queue[p->queue].lock);
+#endif
+
 #if defined(PBS)
   p->tickrng = ticks;
 #endif
+
   sched();
   release(&p->lock);
 }
@@ -749,6 +870,10 @@ forkret(void)
 
   // Still holding p->lock from scheduler.
   release(&myproc()->lock);
+
+// #if defined(MLFQ)
+//   release(&queue[myproc()->queue].lock);
+// #endif
 
   if (first) {
     // File system initialization must be run in the context of a
@@ -820,6 +945,13 @@ wakeup(void *chan)
         else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
 #endif
         p->state = RUNNABLE;
+#if defined(MLFQ)
+        p->ticksused = 0;
+        acquire(&queue[p->queue].lock);
+        // add to end of the same queue
+        push(&queue[p->queue], p);
+        release(&queue[p->queue].lock);
+#endif
 #if defined(LBS)
         totaltickets += p->tickets;
 #endif
@@ -849,6 +981,13 @@ kill(int pid)
         p->tickls = ticks;
         if(p->tickslp + p->tickrng == 0) p->niceness = 0;
         else p->niceness = (p->tickslp * 10) / (p->tickslp + p->tickrng);
+#endif
+#if defined(MLFQ)
+        p->ticksused = 0;
+        acquire(&queue[p->queue].lock);
+        // add to end of the same queue
+        push(&queue[p->queue], p);
+        release(&queue[p->queue].lock);
 #endif
 #if defined(LBS)
         totaltickets += p->tickets;
@@ -940,6 +1079,8 @@ procdump(void)
     printf("%d %d %d %s %s", p->pid, p->priority, p->niceness, state, p->name);
 #elif defined (FCFS)
     printf("%d %d %s %s", p->pid, p->stick, state, p->name);
+#elif defined (MLFQ)
+    printf("%d %d %d %d %s %s", p->pid, p->queue, p->waittime, p->ticksused, state, p->name);
 #else
     printf("%d %s %s", p->pid, state, p->name);
 #endif

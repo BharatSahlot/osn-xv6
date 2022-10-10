@@ -160,6 +160,7 @@ UPROGS=\
 	$U/_pbstest\
 	$U/_setpriority\
 	$U/_LBStest\
+	$U/_mlfqtest\
 
 fs.img: mkfs/mkfs README.md $(UPROGS)
 	mkfs/mkfs fs.img README.md $(UPROGS)

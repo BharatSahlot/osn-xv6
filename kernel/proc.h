@@ -106,6 +106,12 @@ struct proc {
   int nscheduled;              // number of times the process has been scheduled
 #endif
 
+#if defined(MLFQ)
+  int queue;                   // priority of the process 0 - NQUEUEs
+  int waittime;                // ticks the process spent in runnable state
+  int ticksused;               // ticks used of the current time slice
+#endif
+
 #if defined(LBS)
   int tickets;                 // tickets assigned to the process
 #endif
@@ -131,3 +137,10 @@ struct proc {
   int trace;                   // If non-zero, syscalls by this process are being traced
   int tracemask;               // Mask of syscalls to trace
 };
+
+#if defined(MLFQ)
+struct qproc {
+  struct spinlock lock;
+  struct proc* proc[NPROC];
+};
+#endif
