@@ -143,4 +143,6 @@ struct qproc {
   struct spinlock lock;
   struct proc* proc[NPROC];
 };
+
+extern struct qproc queue[NQUEUE];
 #endif

@@ -97,9 +97,21 @@ usertrap(void)
       p->trapframe->epc = p->handler;
     }
 #if defined(MLFQ)
-    struct proc* p = myproc();
     p->ticksused++;
     if(p->ticksused >= (1 << p->queue)) yield();
+    // else {
+    //   struct qproc* q = 0;
+    //   for(q = queue; q < &queue[p->queue]; q++) {
+    //     acquire(&q->lock);
+    //     p = front(q);
+    //     if(p != 0) {
+    //       release(&q->lock);
+    //       yield(); // preempt if some process is waiting in a higher priority queue
+    //       break;
+    //     }
+    //     release(&q->lock);
+    //   }
+    // }
 #else
     yield();
 #endif
@@ -187,6 +199,19 @@ kerneltrap()
     struct proc* p = myproc();
     p->ticksused++;
     if(p->ticksused >= (1 << p->queue)) yield();
+    // else {
+    //   struct qproc* q = 0;
+    //   for(q = queue; q < &queue[p->queue]; q++) {
+    //     acquire(&q->lock);
+    //     p = front(q);
+    //     if(p != 0) {
+    //       release(&q->lock);
+    //       yield(); // preempt if some process is waiting in a higher priority queue
+    //       break;
+    //     }
+    //     release(&q->lock);
+    //   }
+    // }
 #else
     yield();
 #endif
