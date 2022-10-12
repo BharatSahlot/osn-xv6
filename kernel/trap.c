@@ -89,7 +89,8 @@ usertrap(void)
       flags = PTE_FLAGS(*pte);
       if(!(flags & PTE_V))
       {
-        printf("Invalid PTE\n");
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
         setkilled(p);
         exit(-1);
       }
