@@ -120,4 +120,7 @@ struct proc {
   struct trapframe *trapcopy;  // copy of trapframe to restore registers
   int trace;                   // If non-zero, syscalls by this process are being traced
   int tracemask;               // Mask of syscalls to trace
+  uint rtime;                   // How long the process ran for
+  uint ctime;                   // When was the process created 
+  uint etime;                   // When did the process exited int tracemask;               // Mask of syscalls to trace
 };

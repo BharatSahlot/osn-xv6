@@ -28,6 +28,7 @@ int sigalarm(int, void (*handler)(void));
 int sigreturn(void);
 int trace(int mask);
 int settickets(int);
+int waitx(int *, int *, int *);
 
 // ulib.c
 int stat(const char*, struct stat*);
