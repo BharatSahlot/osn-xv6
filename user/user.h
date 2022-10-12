@@ -35,6 +35,7 @@ int set_priority(int new_priority, int pid);
 #if defined(LBS)
 int settickets(int);
 #endif
+int waitx(int *, int *, int *);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -68,9 +68,66 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+    if(r_scause() == 15 || r_scause() == 13){
+      uint64 va = r_stval();
+      if(va >= MAXVA || (va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE && va <= PGROUNDDOWN(p->trapframe->sp)))
+      {
+        setkilled(p);
+        exit(-1);
+      }
+      pte_t *pte;
+      uint64 pa;
+      int flags;
+      va = PGROUNDDOWN(va);
+      pte = walk(p->pagetable, va, 0);
+      if(pte == 0)
+      {
+        setkilled(p);
+        exit(-1);
+      }
+      pa = PTE2PA(*pte);
+      flags = PTE_FLAGS(*pte);
+      if(!(flags & PTE_V))
+      {
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+        setkilled(p);
+        exit(-1);
+      }
+      if(!(flags & PTE_U))
+      {
+        printf("User cannot access memory\n");
+        setkilled(p);
+        exit(-1);
+      }
+      if(flags & PTE_C)
+      {
+        flags &= ~PTE_C;
+        flags |= PTE_W;
+        char *mem = kalloc();
+        if(mem == 0)
+        {
+          printf("couldnt alooate memory\n");
+          setkilled(p);
+          exit(-1);
+        }
+        memmove(mem, (void *)pa, PGSIZE);
+        *pte = PA2PTE(mem) | flags;
+        kfree((void *)pa);
+      }
+      else
+      {
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+        setkilled(p);
+      }
+    }
+    else
+    {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
+    }
   }
 
   if(killed(p))
@@ -242,6 +299,7 @@ clockintr()
     release(&tp->lock);
   }
 #endif
+  update_time();
   wakeup(&ticks);
   release(&tickslock);
 }

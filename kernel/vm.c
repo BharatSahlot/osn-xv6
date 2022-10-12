@@ -308,7 +308,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+  // char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -317,13 +317,24 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    // if((mem = kalloc()) == 0)
+    //   goto err;
+    // memmove(mem, (char*)pa, PGSIZE);
+    // if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+    //   kfree(mem);
+    //   goto err;
+    // }
+    if(flags & PTE_W)
+    {
+      flags &= ~PTE_W;
+      *pte &= ~PTE_W;
+      flags |= PTE_C;
+      *pte |= PTE_C;
+    }
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
     }
+    incpgrc((void *)pa);
   }
   return 0;
 
@@ -352,12 +363,40 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-
+  int flags;
+  pte_t *pte;
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
+    pte = walk(pagetable, va0, 0);
+    flags = PTE_FLAGS(*pte);
+    if(flags & PTE_C)
+    {
+      if(va0 >= MAXVA)
+      {
+        printf("invalid addrress usertrap\n");
+      }
+      if(!(flags & PTE_V))
+      {
+        printf("Invalid PTE\n");
+      }
+      if(flags & PTE_C)
+      {
+        flags &= ~PTE_C;
+        flags |= PTE_W;
+        char *mem = kalloc();
+        if(mem == 0)
+        {
+          printf("couldnt alooate memory\n");
+        }
+        memmove(mem, (void *)pa0, PGSIZE);
+        *pte = PA2PTE(mem) | flags;
+        kfree((void *)pa0);
+        pa0 = walkaddr(pagetable, va0);
+      }
+    }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

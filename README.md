@@ -12,6 +12,9 @@ but is implemented for a modern RISC-V multiprocessor using ANSI C.
 
 ### Syscalls Implemented
 - **trace:** Implemented syscall `trace` which turns on the tracing mode for a process. During tracing for all syscalls called and specified in the mask, their arguement list and return value is printed.
+- **sigalarm** Implemented syscall `sigalarm` which sets an alarm flag, an alarm interval `n` and an alarm handler `fn` to be called for the process at every `n` ticks.
+- **sigreturn** Implemented syscall `sigreturn` which restores the state of the process to before the last alarm handler was called. It is supposed to be called at the end of the handler by the handler.
+- **settickets**(for LBS only) Implemented syscall `settickets` which sets the number of tickets of a process to the given value. It can be used to increase or decrease the probability of a process being scheduled in LBS.
 
 ### Programs Written
 - **strace:** `strace <mask> <command>`, executes command `command` and traces all syscalls specified in the mask `mask`.
