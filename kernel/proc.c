@@ -45,41 +45,6 @@ struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
-#if defined(MLFQ)
-struct qproc queue[NQUEUE];
-
-struct proc* front(struct qproc* q)
-{
-  return q->proc[0];
-}
-
-void pop(struct qproc* q)
-{
-  for(int i = 0; i < NPROC - 1; i++) {
-    q->proc[i] = q->proc[i + 1];
-  }
-  q->proc[NPROC - 1] = 0;
-}
-
-void push(struct qproc* q, struct proc* p)
-{
-  for(int i = 0; i < NPROC; i++) {
-    if(q->proc[i] == 0) {
-      q->proc[i] = p;
-      break;
-    }
-  }
-}
-
-void mlfq_new_proc(struct proc* p)
-{
-  acquire(&queue[0].lock);
-  p->queue = 0;
-  push(&queue[0], p);
-  release(&queue[0].lock);
-}
-#endif
-
 struct proc *initproc;
 
 int nextpid = 1;
@@ -128,15 +93,6 @@ procinit(void)
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
   }
-#if defined(MLFQ)
-  struct qproc* q;
-  for(q = queue; q < &queue[NQUEUE]; q++) {
-    initlock(&q->lock, "queue");
-    for(int i = 0; i < NPROC; i++) {
-      q->proc[i] = 0;
-    }
-  }
-#endif
 }
 
 // Must be called with interrupts disabled,
@@ -224,9 +180,10 @@ found:
 #endif
 
 #if defined(MLFQ)
-  p->queue = -1;  // not part of any queue in beginning
+  p->queue = 0;
   p->waittime = 0;
   p->ticksused = 0;
+  p->intime = 0;
 #endif
 
   // Allocate a trapframe page.
@@ -307,6 +264,7 @@ freeproc(struct proc *p)
   p->queue = 0;
   p->waittime = 0;
   p->ticksused = 0;
+  p->intime = 0;
 #endif
 }
 
@@ -391,7 +349,8 @@ userinit(void)
   p->state = RUNNABLE;
 
 #if defined(MLFQ)
-  mlfq_new_proc(p);
+  p->queue = 0;
+  p->intime = ticks;
 #endif
 
 #if defined(LBS)
@@ -474,7 +433,8 @@ fork(void)
   np->state = RUNNABLE;
 
 #if defined(MLFQ)
-  mlfq_new_proc(np);
+  p->queue = 0;
+  p->intime = ticks;
 #endif
 
 #if defined(LBS)
@@ -694,42 +654,35 @@ scheduler(void)
   for(;;) {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+    struct proc* best = 0;
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        if(best == 0) {
+          best = p;
+          continue;
+        }
 
-    struct qproc* q = 0;
-    for(q = queue; q < &queue[NQUEUE]; q++) {
-      acquire(&q->lock);
-      p = front(q);
-      if(p != 0) {
-        pop(q);
-        acquire(&p->lock);
-        if(p->state != RUNNABLE) {
-          release(&p->lock);
-          p = front(q);
-          while(p != 0) {
-            pop(q);
-            acquire(&p->lock);
-            if(p->state != RUNNABLE) {
-              release(&p->lock);
-              p = front(q);
-              continue;
-            }
-            break;
-          }
+        if((best->queue == p->queue && p->intime < best->intime) || (p->queue < best->queue)) {
+          release(&best->lock);
+          best = p;
+          continue;
         }
-        if(p == 0) {
-          release(&q->lock);
-          break;
-        }
-        p->state = RUNNING;
-        c->proc = p;
-        release(&q->lock);
-        swtch(&c->context, &p->context);
-        c->proc = 0;
-        release(&p->lock);
-        break;
       }
-      release(&q->lock);
+      release(&p->lock);
     }
+    if(best != 0) {
+      best->ticksused = 0;
+      best->waittime = 0;
+
+      best->state = RUNNING;
+      c->proc = best;
+      // printf("scheduling %s with pid %d now\n", best->name, best->pid);
+      swtch(&c->context, &best->context);
+      c->proc = 0;
+      release(&best->lock);
+    }
+    best = 0;
   }
 #elif defined(LBS)
   for(;;){
@@ -845,11 +798,8 @@ yield(void)
   // move to next queue
   if(p->queue != NQUEUE - 1 && p->ticksused >= (1 << p->queue)) p->queue++;
 
+  p->intime = ticks;
   p->ticksused = 0;
-  acquire(&queue[p->queue].lock);
-  // add to end of the same queue
-  push(&queue[p->queue], p);
-  release(&queue[p->queue].lock);
 #endif
 
 #if defined(PBS)
@@ -947,10 +897,7 @@ wakeup(void *chan)
         p->state = RUNNABLE;
 #if defined(MLFQ)
         p->ticksused = 0;
-        acquire(&queue[p->queue].lock);
-        // add to end of the same queue
-        push(&queue[p->queue], p);
-        release(&queue[p->queue].lock);
+        p->intime = ticks;
 #endif
 #if defined(LBS)
         totaltickets += p->tickets;
@@ -984,10 +931,7 @@ kill(int pid)
 #endif
 #if defined(MLFQ)
         p->ticksused = 0;
-        acquire(&queue[p->queue].lock);
-        // add to end of the same queue
-        push(&queue[p->queue], p);
-        release(&queue[p->queue].lock);
+        p->intime = ticks;
 #endif
 #if defined(LBS)
         totaltickets += p->tickets;
@@ -1080,7 +1024,9 @@ procdump(void)
 #elif defined (FCFS)
     printf("%d %d %s %s", p->pid, p->stick, state, p->name);
 #elif defined (MLFQ)
-    printf("%d %d %d %d %s %s", p->pid, p->queue, p->waittime, p->ticksused, state, p->name);
+    printf("%d %d %d %d %d %s %s", p->pid, p->queue, p->intime, p->waittime, p->ticksused, state, p->name);
+#elif defined (LBS)
+    printf("%d %d %s %s", p->pid, p->tickets, state, p->name);
 #else
     printf("%d %s %s", p->pid, state, p->name);
 #endif

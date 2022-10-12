@@ -23,14 +23,18 @@ main(int argc, char *argv[])
   }
   else
   {
+    // int a = 0;
     while(1)
     // for(int i = 0; i < 1000*500000; i++)
     {
+      // a++;
       // if((i % 1000000) == 0)
       // {
         write(1, "1", 1);
+        write(1, "\b", 1);
       // }
     }
+    // printf("%d", a);
     int stat;
     wait(&stat);
   }

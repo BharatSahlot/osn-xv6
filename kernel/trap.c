@@ -97,21 +97,20 @@ usertrap(void)
       p->trapframe->epc = p->handler;
     }
 #if defined(MLFQ)
+    struct proc* tp;
     p->ticksused++;
     if(p->ticksused >= (1 << p->queue)) yield();
-    // else {
-    //   struct qproc* q = 0;
-    //   for(q = queue; q < &queue[p->queue]; q++) {
-    //     acquire(&q->lock);
-    //     p = front(q);
-    //     if(p != 0) {
-    //       release(&q->lock);
-    //       yield(); // preempt if some process is waiting in a higher priority queue
-    //       break;
-    //     }
-    //     release(&q->lock);
-    //   }
-    // }
+    else {
+      for(tp = proc; tp < &proc[NPROC]; tp++) {
+        acquire(&tp->lock);
+        if(tp->state == RUNNABLE && tp->queue < p->queue) {
+          release(&tp->lock);
+          yield();
+          break;
+        }
+        release(&tp->lock);
+      }
+    }
 #else
     yield();
 #endif
@@ -199,19 +198,18 @@ kerneltrap()
     struct proc* p = myproc();
     p->ticksused++;
     if(p->ticksused >= (1 << p->queue)) yield();
-    // else {
-    //   struct qproc* q = 0;
-    //   for(q = queue; q < &queue[p->queue]; q++) {
-    //     acquire(&q->lock);
-    //     p = front(q);
-    //     if(p != 0) {
-    //       release(&q->lock);
-    //       yield(); // preempt if some process is waiting in a higher priority queue
-    //       break;
-    //     }
-    //     release(&q->lock);
-    //   }
-    // }
+    else {
+      struct proc* tp;
+      for(tp = proc; tp < &proc[NPROC]; tp++) {
+        acquire(&tp->lock);
+        if(tp->state == RUNNABLE && tp->queue < p->queue) {
+          release(&tp->lock);
+          yield();
+          break;
+        }
+        release(&tp->lock);
+      }
+    }
 #else
     yield();
 #endif
@@ -229,6 +227,21 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+#if defined(MLFQ)
+  struct proc* tp;
+  for(tp = proc; tp < &proc[NPROC]; tp++) {
+    acquire(&tp->lock);
+    if(tp->state == RUNNABLE) {
+      tp->waittime++;
+      if(tp->waittime >= MAX_WAIT_TIME) {
+        tp->waittime = 0;
+        tp->queue--;
+        if(tp->queue < 0) tp->queue = 0;
+      }
+    }
+    release(&tp->lock);
+  }
+#endif
   wakeup(&ticks);
   release(&tickslock);
 }

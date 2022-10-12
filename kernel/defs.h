@@ -9,9 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-#if defined(MLFQ)
-struct qproc;
-#endif
+#define MAX_WAIT_TIME 16
 
 // bio.c
 void            binit(void);
@@ -112,11 +110,6 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 #if defined(PBS)
 int             set_priority(int new_priority, int pid);
-#endif
-#if defined(MLFQ)
-struct          proc* front(struct qproc* q);
-void            pop(struct qproc* q);
-void            push(struct qproc* q, struct proc* p);
 #endif
 
 // swtch.S

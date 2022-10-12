@@ -110,6 +110,7 @@ struct proc {
   int queue;                   // priority of the process 0 - NQUEUEs
   int waittime;                // ticks the process spent in runnable state
   int ticksused;               // ticks used of the current time slice
+  int intime;                  // used for implementing queue
 #endif
 
 #if defined(LBS)
@@ -138,11 +139,4 @@ struct proc {
   int tracemask;               // Mask of syscalls to trace
 };
 
-#if defined(MLFQ)
-struct qproc {
-  struct spinlock lock;
-  struct proc* proc[NPROC];
-};
-
-extern struct qproc queue[NQUEUE];
-#endif
+extern struct proc proc[NPROC];
