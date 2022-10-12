@@ -27,7 +27,14 @@ int uptime(void);
 int sigalarm(int, void (*handler)(void));
 int sigreturn(void);
 int trace(int mask);
+
+#if defined(PBS)
+int set_priority(int new_priority, int pid);
+#endif
+
+#if defined(LBS)
 int settickets(int);
+#endif
 int waitx(int *, int *, int *);
 
 // ulib.c

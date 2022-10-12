@@ -133,7 +133,7 @@ usertrap(void)
   if(killed(p))
     exit(-1);
 
-#if defined(FCFS)
+#if defined(FCFS) || defined(PBS)
   if(which_dev == 2){
     p->ticksp++;
     if(p->ticksn > 0 && p->ticksp - p->tickspa == p->ticksn && p->sigalarm)
@@ -212,7 +212,7 @@ void
 kerneltrap()
 {
   int which_dev = 0;
-#if !defined(FCFS)
+#if !defined(FCFS) && !defined(PBS)
   uint64 sepc = r_sepc();
 #endif
   uint64 sstatus = r_sstatus();
@@ -229,8 +229,8 @@ kerneltrap()
     panic("kerneltrap");
   }
 
-#if defined(FCFS)
-  // dont give up CPU in FCFS scheduling
+#if defined(FCFS) || defined(PBS)
+  // dont give up CPU in non-premptive scheduling
 #else
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)

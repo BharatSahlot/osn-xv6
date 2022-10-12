@@ -23,5 +23,10 @@
 #define SYS_trace  22
 #define SYS_sigalarm  23
 #define SYS_sigreturn  24
-#define SYS_settickets  25
-#define SYS_waitx  26
+#define SYS_waitx  25
+#if defined(PBS)
+#define SYS_set_priority  26
+#endif
+#if defined(LBS)
+#define SYS_settickets  26
+#endif

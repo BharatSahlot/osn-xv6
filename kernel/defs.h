@@ -110,6 +110,9 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             waitx(uint64, uint*, uint*);
 void            update_time(void);
+#if defined(PBS)
+int             set_priority(int new_priority, int pid);
+#endif
 
 // swtch.S
 void            swtch(struct context*, struct context*);
