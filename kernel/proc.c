@@ -1087,16 +1087,3 @@ waitx(uint64 addr, uint* wtime, uint* rtime)
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
 }
-
-void
-update_time()
-{
-  struct proc* p;
-  for (p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if (p->state == RUNNING) {
-      p->rtime++;
-    }
-    release(&p->lock); 
-  }
-}

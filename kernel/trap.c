@@ -154,10 +154,10 @@ usertrap(void)
       p->trapframe->epc = p->handler;
     }
 #if defined(MLFQ)
-    struct proc* tp;
     p->ticksused++;
     if(p->ticksused >= (1 << p->queue)) yield();
     else {
+      struct proc* tp;
       for(tp = proc; tp < &proc[NPROC]; tp++) {
         acquire(&tp->lock);
         if(tp->state == RUNNABLE && tp->queue < p->queue) {
@@ -284,22 +284,23 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
-#if defined(MLFQ)
   struct proc* tp;
   for(tp = proc; tp < &proc[NPROC]; tp++) {
     acquire(&tp->lock);
     if(tp->state == RUNNABLE) {
+#if defined(MLFQ)
       tp->waittime++;
       if(tp->waittime >= MAX_WAIT_TIME) {
         tp->waittime = 0;
         tp->queue--;
         if(tp->queue < 0) tp->queue = 0;
       }
+#endif
+    } else if (tp->state == RUNNING) {
+      tp->rtime++;
     }
     release(&tp->lock);
   }
-#endif
-  update_time();
   wakeup(&ticks);
   release(&tickslock);
 }

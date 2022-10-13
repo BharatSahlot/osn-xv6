@@ -100,6 +100,23 @@ MLFQ scheduling also implements aging of processes. Every process has a tick cou
 If this exceeds a certain value(set by the macro `MLFQ_WAIT_TIME`), then the process gets pushed to the end of a higher priority queue.
 This helps prevent starvation.
 
+#### Benchmark
+
+
+| Algorithm | CPU Count | Avg. Runtime | Avg. Waitime |
+| - | - | - | - |
+| RR | 1 | 23 | 193 |
+| FCFS | 1 | 22 | 156 |
+| PBS | 1 | 22 | 157 |
+| LBS | 1 | 22 | 190 |
+| MLFQ | 1 | 22 | 186 |
+|  |  |  |  |
+| RR | 2 | 21 | 135 |
+| FCFS | 2 | 24 | 119 |
+| PBS | 2 | 24 | 119 |
+| LBS | 2 | 20 | 136 |
+| MLFQ | 2 | 22 | 127 |
+
 ## ACKNOWLEDGMENTS
 
 xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer

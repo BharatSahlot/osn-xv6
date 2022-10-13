@@ -9,7 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-#define MAX_WAIT_TIME 16
+#define MAX_WAIT_TIME 64
 
 // bio.c
 void            binit(void);
@@ -111,7 +111,6 @@ int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             waitx(uint64, uint*, uint*);
-void            update_time(void);
 #if defined(PBS)
 int             set_priority(int new_priority, int pid);
 #endif
