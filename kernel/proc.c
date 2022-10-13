@@ -583,7 +583,7 @@ int set_priority(int new_priority, int pid)
   struct proc* p;
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
-    if(p->state != UNUSED && p->pid == pid) {
+    if((p->state == SLEEPING || p->state == RUNNING || p->state == RUNNABLE) && p->pid == pid) {
       p->niceness = 5;
       int old = p->priority;
       p->priority = new_priority;
