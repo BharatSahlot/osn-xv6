@@ -29,13 +29,17 @@ In the `syscall(void)` function in `kernel/syscall.c`, we just check if the curr
 
 Implemented syscall `sigalarm` which sets an alarm flag, an alarm interval `n` and an alarm handler `fn` to be called for the process at every `n` ticks.
 
+`sigalarm` syscall can be found in `kernel/syscall.c`. Calling sigalarm sets a flag `sigalarm` to `1` for a process and stores the alarm handler funtion and tick interval after which the handler is to be called in variables `handler` and `ticksn` respectively. Variables `ticksp` and `ticksa` to store ticks used by process since it started and ticks used by process since last call to handler ended. All the variables mentioned above have been declared in the `proc` data structure.
+
 Implemented syscall `sigreturn` which restores the state of the process to before the last alarm handler was called. It is supposed to be called at the end of the handler by the handler.
+
+A copy of the `trapframe` structure is made in a variable `trapcopy` (also in the `proc` data structure) before each handler call. The `trapcopy` structure is copied into the `trapframe` structure in sigreturn except the values related to kernel(stack pointer, cpu id, pagetable and trap) to restore the state of the process before the handler was called.
 
 #### settickets (LBS)
 
-Implemented syscall `settickets` which sets the number of tickets of a process to the given value. It can be used to increase or decrease the probability of a process being scheduled in LBS.
+Implemented syscall `settickets` which sets the number of tickets of a process to the given value. The number of tickets is stored in a variable `tickets` in the `proc` data structure. It can be used to increase or decrease the probability of a process being scheduled in LBS.
 
-##### set_priority (PBS)
+#### set_priority (PBS)
 
 Implemented syscall `set_priority` which resets the `niceness` and sets the `priority` of a given process. The `niceness` and `priority` are used by priority based scheduling for scheduling. Also preempts the current process in case the set priority is higher.
 
@@ -52,6 +56,14 @@ Our implementation of `xv6` supports different scheduling algorithms. Only one s
 Each time a new process is started, we store the number of ticks till then. The `scheduler` function selects process with the least start time. This is a non-preemptive scheduling i.e. a process keeps on running until it goes to sleep or exits.
 
 #### Lottery based scheduling (LBS)
+
+Each time a new process is started it is assigned `1` ticket by default, if the process is created from a fork it inherits the number of tickets of it's parent process. The number of tickets can also be set from the system call `settickets`. A count of total tickets is maintained by a global variable `totaltickets` declared in `kernel/proc.c` and initialized to `0`.
+
+Every time a process state is set to `RUNNABLE` (in `fork`, `userinit` and `yield`) the number of tickets of that process are added to `totaltickets`.
+
+Every time a process state is set to `RUNNING` (in `scheduler`) the number of tickets of that process is subtracted from `totaltickets`.
+
+While scheduling a random number is picked from `1` to `totaltickets`, the scheduler loops through all `RUNNABLE` process adding their tickets to a variable `ctickets` which was initialized to `0`. When value of `ctickets` is greater than or equal to the random number, that process is picked to be run.
 
 #### Priority based scheduling (PBS)
 
@@ -116,6 +128,22 @@ This helps prevent starvation.
 | PBS | 2 | 24 | 119 |
 | LBS | 2 | 20 | 136 |
 | MLFQ | 2 | 22 | 127 |
+
+### Copy-on-write Fork
+
+The given fork system call is modified in a way such that it only copies the physical memory when one of the processes who have access to it try to write on it, instead of copying all the physical memory used by a process for it's child.
+
+This implemented by creating a new flag `PTE_C`(declared in `kernel/riscv.h`) which tell if a page needs to be copied when the process tries to right on it. The `uvmcopy()` function in `kernel/vm.c` has been modified to to set the copy on write flag `PTE_C` and remove the write permission flag `PTE_W` from the flags of a page instead of just copying it.
+
+Taking away the write permission like this will result in a page fault whenever the process tries to write on the page. This handled in `usertrap()` function in `kernel/trap.c` by copying the page whenever there is a page fault and page flags contain `PTE_C`.
+
+For freeing the pages an array `pgrc[]` is declared in `kernel/kalloc.c` with indices for each page available in physical memory. This array maintains a count of processes that are accessing a given page.
+
+Every time a page is allocated using `kalloc()` the corresponding value is incremented in the array using the function `incpgrc()` which finds the index of the given page in the array and increments the value at that index by `1`.
+
+Every time a page is freed using `kfree()` it decrements the corresponding value in the array using `decpgrc()`. If the value hits 0 after decrementing, that means no other processes are accessing that page, then the memory of that page is freed.
+
+Changes similar to the ones in `usertrap()` in are made in `copyout()` function in `kernel/vm.c` as this function is used by the kernel to write on a user process' memory.
 
 ## ACKNOWLEDGMENTS
 
