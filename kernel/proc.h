@@ -139,7 +139,7 @@ struct proc {
   int tracemask;               // Mask of syscalls to trace
   uint rtime;                   // How long the process ran for
   uint ctime;                   // When was the process created 
-  uint etime;                   // When did the process exited int tracemask;               // Mask of syscalls to trace
+  uint etime;                   // When did the process exited int tracemask
 };
 
 extern struct proc proc[NPROC];

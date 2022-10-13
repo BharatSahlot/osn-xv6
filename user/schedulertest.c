@@ -20,7 +20,7 @@ int main() {
           if (n < IO) {
             sleep(200); // IO bound processes
           } else {
-            for (long long int i = 0; i < 20000000000; i++) {}; // CPU bound process
+            for (long long int i = 0; i < 10000000000; i++) {}; // CPU bound process
           }
           // printf("Process %d finished", n);
           exit(0);
@@ -36,6 +36,6 @@ int main() {
           twtime += wtime;
       } 
   }
-  printf("Average rtime %d,  wtime %d\n", trtime , twtime );
+  printf("Average rtime %d,  wtime %d\n", trtime / NFORK, twtime / NFORK);
   exit(0);
 }
