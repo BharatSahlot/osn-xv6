@@ -397,6 +397,7 @@ fork(void)
 
   // Allocate process.
   if((np = allocproc()) == 0){
+    printf("allocproc fail\n");
     return -1;
   }
 
@@ -404,6 +405,7 @@ fork(void)
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
+    printf("uvmcopy fail\n");
     return -1;
   }
   np->sz = p->sz;

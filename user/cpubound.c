@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     if (pid < 0)
       break;
     if (pid == 0) {
-      for (long long int i = 0; i < 20000000000; i++) {}; // CPU bound process
+      for (long long int i = 0; i < 10500000000; i++) {}; // CPU bound process
       exit(0);
     }
   }

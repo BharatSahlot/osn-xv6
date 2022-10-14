@@ -112,6 +112,12 @@ MLFQ scheduling also implements aging of processes. Every process has a tick cou
 If this exceeds a certain value(set by the macro `MAX_WAIT_TIME`), then the process gets pushed to the end of a higher priority queue.
 This helps prevent starvation.
 
+##### Scheduling Analysis Graphs
+
+![5 processes queue graph](./imgs/plot-5-proc.png "Queue graph for 5 processes")
+![7 processes queue graph](./imgs/plot-7-proc.png "Queue graph for 7 processes")
+![6 long processes queue graph](./imgs/plot-6-long-proc.png "Queue graph for 6 long processes")
+
 #### Benchmark
 
 
