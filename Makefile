@@ -76,6 +76,10 @@ ifndef SCHEDULER
 SCHEDULER := RR
 endif
 
+ifeq ($(TRACE_QUEUE),1)
+CFLAGS += -DTRACE_QUEUE
+endif
+
 ifeq ($(SCHEDULER),RR)
 CFLAGS += -DRR
 else ifeq ($(SCHEDULER),FCFS)
@@ -163,6 +167,7 @@ UPROGS=\
 	$U/_mlfqtest\
 	$U/_cowtest\
 	$U/_schedulertest\
+	$U/_cpubound\
 
 fs.img: mkfs/mkfs README.md $(UPROGS)
 	mkfs/mkfs fs.img README.md $(UPROGS)

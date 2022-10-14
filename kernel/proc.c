@@ -184,6 +184,9 @@ found:
   p->waittime = 0;
   p->ticksused = 0;
   p->intime = 0;
+#if defined(TRACE_QUEUE)
+      printf("[%d] started process %d\n", ticks, p->pid);
+#endif
 #endif
 
   // Allocate a trapframe page.
@@ -505,6 +508,10 @@ exit(int status)
 
   release(&wait_lock);
 
+#if defined(TRACE_QUEUE)
+      printf("[%d] exited process %d\n", ticks, p->pid);
+#endif
+
   // Jump into the scheduler, never to return.
   sched();
   panic("zombie exit");
@@ -799,7 +806,12 @@ yield(void)
   p->state = RUNNABLE;
 #if defined(MLFQ)
   // move to next queue
-  if(p->queue != NQUEUE - 1 && p->ticksused >= (1 << p->queue)) p->queue++;
+  if(p->queue != NQUEUE - 1 && p->ticksused >= (1 << p->queue)) {
+#if defined(TRACE_QUEUE)
+    printf("[%d] queue for %d changed from %d to %d\n", ticks, p->pid, p->queue, p->queue + 1);
+#endif
+    p->queue++;
+  }
 
   p->intime = ticks;
   p->ticksused = 0;

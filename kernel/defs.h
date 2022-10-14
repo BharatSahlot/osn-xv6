@@ -9,7 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-#define MAX_WAIT_TIME 64
+#define MAX_WAIT_TIME 16
 
 // bio.c
 void            binit(void);
