@@ -1075,6 +1075,7 @@ mem(char *s)
     free(m1);
     exit(0);
   } else {
+    // printf("1\n");
     int xstatus;
     wait(&xstatus);
     if(xstatus == -1){

@@ -21,7 +21,7 @@ int main() {
           } else {
             for (long long int i = 0; i < 10000000000; i++) {}; // CPU bound process
           }
-          // printf("Process %d finished", n);
+          printf("Process %d finished\n", n);
           exit(0);
       } else {
 #ifdef PBS

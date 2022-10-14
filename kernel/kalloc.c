@@ -23,23 +23,26 @@ struct {
   struct run *freelist;
 } kmem;
 
-int pgrc[(PGROUNDUP(PHYSTOP) - KERNBASE) / PGSIZE] = {0};
+int pgrc[PGROUNDUP(PHYSTOP) / PGSIZE] = {0};
+
+struct spinlock rclk[PGROUNDUP(PHYSTOP)/ PGSIZE];
 
 void
 incpgrc(void * pa)
 {
-  int index = (PGROUNDDOWN((uint64) pa) - KERNBASE) / PGSIZE;
+  int index = PGROUNDDOWN((uint64) pa) / PGSIZE;
+  acquire(&rclk[index]);
   if(pgrc[index] < 0)
   {
     panic("negative ref count in incpgrc\n");
   }
   pgrc[index]++;
+  release(&rclk[index]);
 }
 
 void
-decpgrc(void * pa)
+decpgrc(int index)
 {
-  int index = (PGROUNDDOWN((uint64) pa) - KERNBASE) / PGSIZE;
   if(pgrc[index] <= 0)
   {
     panic("negative ref count in decpgrc\n");
@@ -51,6 +54,12 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  kmem.freelist = 0;
+  int n = PHYSTOP / PGSIZE;
+  for(int i = 0; i<n; i++)
+  {
+    initlock(&rclk[i], "refcountlock");
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -78,9 +87,10 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
-  decpgrc(pa);
+  int index = PGROUNDDOWN((uint64) pa) / PGSIZE;
+  acquire(&rclk[index]);
+  decpgrc(index);
 
-  int index = (PGROUNDDOWN((uint64) pa) - KERNBASE) / PGSIZE;
   if(pgrc[index] == 0)
   {
     // Fill with junk to catch dangling refs.
@@ -93,6 +103,7 @@ kfree(void *pa)
     kmem.freelist = r;
     release(&kmem.lock);
   }
+  release(&rclk[index]);
 }
 
 // Allocate one 4096-byte page of physical memory.

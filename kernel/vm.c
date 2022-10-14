@@ -376,7 +376,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     {
       if(va0 >= MAXVA)
       {
-        printf("invalid addrress usertrap\n");
+        printf("invalid address usertrap\n");
       }
       if(!(flags & PTE_V))
       {
@@ -389,7 +389,8 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
         char *mem = kalloc();
         if(mem == 0)
         {
-          printf("couldnt alooate memory\n");
+          printf("Couldnt allocate memory\n");
+          setkilled(myproc());
         }
         memmove(mem, (void *)pa0, PGSIZE);
         *pte = PA2PTE(mem) | flags;

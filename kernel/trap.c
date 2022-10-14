@@ -107,7 +107,7 @@ usertrap(void)
         char *mem = kalloc();
         if(mem == 0)
         {
-          printf("couldnt alooate memory\n");
+          printf("Couldn't allocate memory\n");
           setkilled(p);
           exit(-1);
         }
