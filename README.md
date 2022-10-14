@@ -109,8 +109,14 @@ Each queue has different number of ticks a process can run for at a time before 
 If a process voluntarily relinquishes control of the CPU before it uses all its available ticks, then it stays in the current queue. This can be exploited by a process, so that the process can stay in a higher priority queue for a long time. Using `sigalarm` a process can periodically go to sleep and come back quickly to reset its tick count and stay in the same queue.
 
 MLFQ scheduling also implements aging of processes. Every process has a tick count for the amount of ticks it has spent waiting in the queue.
-If this exceeds a certain value(set by the macro `MLFQ_WAIT_TIME`), then the process gets pushed to the end of a higher priority queue.
+If this exceeds a certain value(set by the macro `MAX_WAIT_TIME`), then the process gets pushed to the end of a higher priority queue.
 This helps prevent starvation.
+
+##### Scheduling Analysis Graphs
+
+![5 processes queue graph](./imgs/plot-5-proc.png "Queue graph for 5 processes")
+![7 processes queue graph](./imgs/plot-7-proc.png "Queue graph for 7 processes")
+![6 long processes queue graph](./imgs/plot-6-long-proc.png "Queue graph for 6 long processes")
 
 #### Benchmark
 

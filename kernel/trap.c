@@ -284,22 +284,25 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
-  struct proc* tp;
-  for(tp = proc; tp < &proc[NPROC]; tp++) {
-    acquire(&tp->lock);
-    if(tp->state == RUNNABLE) {
+  struct proc* p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state == RUNNABLE) {
 #if defined(MLFQ)
-      tp->waittime++;
-      if(tp->waittime >= MAX_WAIT_TIME) {
-        tp->waittime = 0;
-        tp->queue--;
-        if(tp->queue < 0) tp->queue = 0;
+      p->waittime++;
+      if(p->waittime >= MAX_WAIT_TIME) {
+        p->waittime = 0;
+#if defined(TRACE_QUEUE)
+        printf("[%d] queue for %d changed from %d to %d\n", ticks, p->pid, p->queue, p->queue - 1 < 0 ? 0 : p->queue - 1);
+#endif
+        p->queue--;
+        if(p->queue < 0) p->queue = 0;
       }
 #endif
-    } else if (tp->state == RUNNING) {
-      tp->rtime++;
+    } else if (p->state == RUNNING) {
+      p->rtime++;
     }
-    release(&tp->lock);
+    release(&p->lock);
   }
   wakeup(&ticks);
   release(&tickslock);
